@@ -1,39 +1,30 @@
 import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import { prisma } from '../config/prisma';
-import { env } from '../config/env';
-import { ApiError } from '../utils/ApiError';
+import { AppError } from '../utils/AppError';
+import { StatusCodes } from 'http-status-codes';
+import { RegisterInput, LoginInput } from '../validators/auth.schema';
 
-export const authService = {
-  async register(data: any) {
+export const AuthService = {
+  async register(data: RegisterInput) {
     const exists = await prisma.user.findUnique({ where: { email: data.email } });
-    if (exists) throw new ApiError(400, "User exists");
+    if (exists) throw new AppError('Email already exists', StatusCodes.CONFLICT);
 
-    const hashed = await bcrypt.hash(data.password, 10);
-
-    const user = await prisma.user.create({
-      data: { ...data, password: hashed },
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    return prisma.user.create({
+      data: { email: data.email, password: hashedPassword },
+      select: { id: true, email: true },
     });
-
-    return this.generateToken(user);
   },
 
-  async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new ApiError(400, "Invalid credentials");
-
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) throw new ApiError(400, "Invalid credentials");
-
-    const  token =this.generateToken(user);
-    return {token,user};
+  async login(data: LoginInput) {
+    const user = await prisma.user.findUnique({ where: { email: data.email } });
+    if (!user || !(await bcrypt.compare(data.password, user.password))) {
+      throw new AppError('Invalid credentials', StatusCodes.UNAUTHORIZED);
+    }
+    return { id: user.id, email: user.email };
   },
 
-  generateToken(user: any) {
-    return jwt.sign(
-      { userId: user.id, email: user.email },
-      env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-  },
+  async getUser(id: string) {
+    return prisma.user.findUnique({ where: { id }, select: { id: true, email: true } });
+  }
 };

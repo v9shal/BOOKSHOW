@@ -1,12 +1,10 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import * as controller from '../controllers/bookmark.controller';
+import * as Book from '../controllers/bookmark.controller';
+import {authMiddleware}  from '../middlewares/auth.middleware';
 
 const router = Router();
 router.use(authMiddleware);
-
-router.post('/', controller.createBookmark);
-router.get('/', controller.getAllBookmarks);
-router.delete('/:id', controller.deleteBookmark);
-
+router.post('/', Book.createBookmark);
+router.get('/', Book.getAllBookmarks);
+router.delete('/:id', Book.deleteBookmark);
 export default router;
